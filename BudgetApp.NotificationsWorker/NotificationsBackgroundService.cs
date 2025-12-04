@@ -30,9 +30,23 @@ public class NotificationsBackgroundService(IHttpClientFactory _httpClientFactor
         var rulesClient = _httpClientFactory.CreateClient("rules-service");
 
         // 1) Get uncategorized transactions
-        var txs = await txClient.GetFromJsonAsync<List<Transaction>>(
-            "/internal/transactions/uncategorized?take=20", ct)
-            ?? new List<Transaction>();
+        List<Transaction> txs;
+        try
+        {
+            var response = await txClient.GetAsync("/internal/transactions/uncategorized?take=20", ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogWarning("Failed to get uncategorized transactions: {Status}", response.StatusCode);
+                return;
+            }
+            
+            txs = await response.Content.ReadFromJsonAsync<List<Transaction>>(ct) ?? [];
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Error fetching uncategorized transactions");
+            return;
+        }
 
         if (txs.Count == 0)
         {
@@ -113,8 +127,23 @@ public class NotificationsBackgroundService(IHttpClientFactory _httpClientFactor
         var month = now.Month;
 
         var url = $"/internal/analytics/budget-status?year={year}&month={month}";
-        var budgetStatuses = await analyticsClient.GetFromJsonAsync<List<BudgetStatusResult>>(url, ct)
-                             ?? new List<BudgetStatusResult>();
+        List<BudgetStatusResult> budgetStatuses;
+        try
+        {
+            var response = await analyticsClient.GetAsync(url, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogWarning("Failed to get budget status: {Status}", response.StatusCode);
+                return;
+            }
+            
+            budgetStatuses = await response.Content.ReadFromJsonAsync<List<BudgetStatusResult>>(ct) ?? [];
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Error fetching budget status");
+            return;
+        }
 
         foreach (var status in budgetStatuses.Where(s => s.IsOver))
         {

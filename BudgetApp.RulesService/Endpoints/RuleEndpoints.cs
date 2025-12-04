@@ -2,6 +2,7 @@ using BudgetApp.Application.Common.Exceptions;
 using BudgetApp.Application.Features.Rules.Commands.CreateRule;
 using BudgetApp.Application.Features.Rules.Commands.DeleteRule;
 using BudgetApp.Application.Features.Rules.Commands.UpdateRule;
+using BudgetApp.Application.Features.Rules.DTOs;
 using BudgetApp.Application.Features.Rules.Queries.ClassifyTransaction;
 using BudgetApp.Application.Features.Rules.Queries.GetRuleById;
 using BudgetApp.Application.Features.Rules.Queries.GetRules;
@@ -136,7 +137,9 @@ public static class RuleEndpoints
             request.Type);
 
         var result = await sender.Send(query, ct);
-        return Results.Ok(result);
+        
+        // Return a proper JSON response even when no match is found
+        return Results.Ok(result ?? new ClassificationResultDto(null, 0));
     }
 }
 
