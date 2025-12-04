@@ -239,6 +239,7 @@ The Gateway API exposes the following endpoints:
 | **Backend** | ASP.NET Core Minimal APIs |
 | **Frontend** | Blazor Server |
 | **Database** | PostgreSQL with EF Core |
+| **Caching** | Redis (via Aspire) with auto-invalidation |
 | **Architecture** | CQRS with MediatR |
 | **Validation** | FluentValidation |
 | **Testing** | xUnit, Shouldly, NSubstitute |

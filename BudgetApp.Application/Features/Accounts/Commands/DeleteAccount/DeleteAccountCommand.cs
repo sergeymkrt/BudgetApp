@@ -1,3 +1,4 @@
+using BudgetApp.Application.Common.Caching;
 using BudgetApp.Application.Common.Exceptions;
 using BudgetApp.Application.Common.Interfaces;
 using BudgetApp.Application.Common.Models;
@@ -11,10 +12,12 @@ public record DeleteAccountCommand(Guid Id) : IRequest<Result>;
 public class DeleteAccountCommandHandler : IRequestHandler<DeleteAccountCommand, Result>
 {
     private readonly IApplicationDbContext _context;
+    private readonly ICacheService _cache;
 
-    public DeleteAccountCommandHandler(IApplicationDbContext context)
+    public DeleteAccountCommandHandler(IApplicationDbContext context, ICacheService cache)
     {
         _context = context;
+        _cache = cache;
     }
 
     public async Task<Result> Handle(DeleteAccountCommand request, CancellationToken cancellationToken)
@@ -32,6 +35,8 @@ public class DeleteAccountCommandHandler : IRequestHandler<DeleteAccountCommand,
 
         _context.Accounts.Remove(account);
         await _context.SaveChangesAsync(cancellationToken);
+
+        _cache.Remove(CacheKeys.AllAccounts);
 
         return Result.Success();
     }

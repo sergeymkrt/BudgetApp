@@ -1,3 +1,4 @@
+using BudgetApp.Application.Common.Caching;
 using BudgetApp.Application.Features.Accounts.Commands.CreateAccount;
 using BudgetApp.Tests.Common;
 
@@ -6,12 +7,14 @@ namespace BudgetApp.Tests.Handlers;
 public class CreateAccountCommandHandlerTests : IDisposable
 {
     private readonly BudgetApp.Infrastructure.Data.BudgetDbContext _context;
+    private readonly ICacheService _cache;
     private readonly CreateAccountCommandHandler _handler;
 
     public CreateAccountCommandHandlerTests()
     {
         _context = TestDbContextFactory.Create();
-        _handler = new CreateAccountCommandHandler(_context);
+        _cache = new NullCacheService();
+        _handler = new CreateAccountCommandHandler(_context, _cache);
     }
 
     public void Dispose()

@@ -1,3 +1,4 @@
+using BudgetApp.Application.Common.Caching;
 using BudgetApp.Application.Common.Interfaces;
 using BudgetApp.Application.Features.Transactions.DTOs;
 using BudgetApp.Domain.Models;
@@ -21,10 +22,12 @@ public record CreateTransactionCommand(
 public class CreateTransactionCommandHandler : IRequestHandler<CreateTransactionCommand, TransactionDto>
 {
     private readonly IApplicationDbContext _context;
+    private readonly ICacheService _cache;
 
-    public CreateTransactionCommandHandler(IApplicationDbContext context)
+    public CreateTransactionCommandHandler(IApplicationDbContext context, ICacheService cache)
     {
         _context = context;
+        _cache = cache;
     }
 
     public async Task<TransactionDto> Handle(
@@ -46,6 +49,9 @@ public class CreateTransactionCommandHandler : IRequestHandler<CreateTransaction
 
         _context.Transactions.Add(transaction);
         await _context.SaveChangesAsync(cancellationToken);
+
+        // Invalidate analytics cache for the transaction's month
+        _cache.RemoveByPrefix("analytics:");
 
         return new TransactionDto(
             transaction.Id,

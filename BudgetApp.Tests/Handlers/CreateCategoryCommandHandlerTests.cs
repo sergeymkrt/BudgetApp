@@ -1,3 +1,4 @@
+using BudgetApp.Application.Common.Caching;
 using BudgetApp.Application.Features.Categories.Commands.CreateCategory;
 using BudgetApp.Tests.Common;
 
@@ -6,12 +7,14 @@ namespace BudgetApp.Tests.Handlers;
 public class CreateCategoryCommandHandlerTests : IDisposable
 {
     private readonly BudgetApp.Infrastructure.Data.BudgetDbContext _context;
+    private readonly ICacheService _cache;
     private readonly CreateCategoryCommandHandler _handler;
 
     public CreateCategoryCommandHandlerTests()
     {
         _context = TestDbContextFactory.Create();
-        _handler = new CreateCategoryCommandHandler(_context);
+        _cache = new NullCacheService();
+        _handler = new CreateCategoryCommandHandler(_context, _cache);
     }
 
     public void Dispose()

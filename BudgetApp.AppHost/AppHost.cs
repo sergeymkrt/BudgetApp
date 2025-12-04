@@ -4,19 +4,28 @@ var db = builder.AddPostgres("budget-postgres")
     .WithDataVolume()
     .AddDatabase("budgetdb");
 
+var redis = builder.AddRedis("redis")
+    .WithDataVolume();
+
 var transactionsService = builder.AddProject<Projects.BudgetApp_TransactionsService>("transactions-service")
     .WithReference(db)
-    .WaitFor(db);
+    .WithReference(redis)
+    .WaitFor(db)
+    .WaitFor(redis);
 
 var analyticsService = builder
     .AddProject<Projects.BudgetApp_AnalyticsService>("analytics-service")
     .WithReference(db)
-    .WaitFor(db);
+    .WithReference(redis)
+    .WaitFor(db)
+    .WaitFor(redis);
 
 var rulesService = builder
     .AddProject<Projects.BudgetApp_RulesService>("rules-service")
     .WithReference(db)
-    .WaitFor(db);
+    .WithReference(redis)
+    .WaitFor(db)
+    .WaitFor(redis);
 
 var notificationsWorker = builder
     .AddProject<Projects.BudgetApp_NotificationsWorker>("notifications-worker")

@@ -1,3 +1,4 @@
+using BudgetApp.Application.Common.Caching;
 using BudgetApp.Application.Common.Interfaces;
 using BudgetApp.Application.Features.Accounts.DTOs;
 using BudgetApp.Domain.Models;
@@ -10,10 +11,12 @@ public record CreateAccountCommand(string Name, string? Currency = "USD") : IReq
 public class CreateAccountCommandHandler : IRequestHandler<CreateAccountCommand, AccountDto>
 {
     private readonly IApplicationDbContext _context;
+    private readonly ICacheService _cache;
 
-    public CreateAccountCommandHandler(IApplicationDbContext context)
+    public CreateAccountCommandHandler(IApplicationDbContext context, ICacheService cache)
     {
         _context = context;
+        _cache = cache;
     }
 
     public async Task<AccountDto> Handle(CreateAccountCommand request, CancellationToken cancellationToken)
@@ -27,6 +30,8 @@ public class CreateAccountCommandHandler : IRequestHandler<CreateAccountCommand,
 
         _context.Accounts.Add(account);
         await _context.SaveChangesAsync(cancellationToken);
+
+        _cache.Remove(CacheKeys.AllAccounts);
 
         return new AccountDto(account.Id, account.Name, account.Currency);
     }

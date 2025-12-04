@@ -6,8 +6,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
-// Infrastructure (Database)
-builder.Services.AddInfrastructure(builder.Configuration);
+// Infrastructure (Database + Redis)
+builder.AddInfrastructureWithAspire();
 
 // Application layer (MediatR + FluentValidation)
 builder.Services.AddApplicationServices();

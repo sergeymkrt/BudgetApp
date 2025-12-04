@@ -1,3 +1,4 @@
+using BudgetApp.Application.Common.Caching;
 using BudgetApp.Application.Common.Exceptions;
 using BudgetApp.Application.Common.Interfaces;
 using MediatR;
@@ -9,10 +10,12 @@ public record UpdateAccountCommand(Guid Id, string Name, string? Currency) : IRe
 public class UpdateAccountCommandHandler : IRequestHandler<UpdateAccountCommand, bool>
 {
     private readonly IApplicationDbContext _context;
+    private readonly ICacheService _cache;
 
-    public UpdateAccountCommandHandler(IApplicationDbContext context)
+    public UpdateAccountCommandHandler(IApplicationDbContext context, ICacheService cache)
     {
         _context = context;
+        _cache = cache;
     }
 
     public async Task<bool> Handle(UpdateAccountCommand request, CancellationToken cancellationToken)
@@ -27,6 +30,9 @@ public class UpdateAccountCommandHandler : IRequestHandler<UpdateAccountCommand,
             account.Currency = request.Currency;
 
         await _context.SaveChangesAsync(cancellationToken);
+        
+        _cache.Remove(CacheKeys.AllAccounts);
+        
         return true;
     }
 }
