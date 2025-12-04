@@ -241,6 +241,7 @@ The Gateway API exposes the following endpoints:
 | **Database** | PostgreSQL with EF Core |
 | **Architecture** | CQRS with MediatR |
 | **Validation** | FluentValidation |
+| **Testing** | xUnit, Shouldly, NSubstitute |
 | **Observability** | OpenTelemetry |
 
 ---
@@ -265,6 +266,20 @@ dotnet build
 ```bash
 dotnet test
 ```
+
+The test suite includes **57 unit tests** covering:
+
+| Test Category | Description |
+|---------------|-------------|
+| **Validator Tests** | FluentValidation rules for all Create/Update commands |
+| **Handler Tests** | CQRS command handlers using EF Core InMemory database |
+| **Result Tests** | Result pattern and Match() functionality |
+
+**Test Stack:**
+- xUnit (test framework)
+- Shouldly (assertions)
+- NSubstitute (mocking)
+- EF Core InMemory (database testing)
 
 ### Environment Configuration
 

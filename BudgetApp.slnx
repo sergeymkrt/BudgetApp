@@ -8,6 +8,7 @@
   <Project Path="BudgetApp.NotificationsWorker/BudgetApp.NotificationsWorker.csproj" />
   <Project Path="BudgetApp.RulesService/BudgetApp.RulesService.csproj" />
   <Project Path="BudgetApp.ServiceDefaults/BudgetApp.ServiceDefaults.csproj" />
+  <Project Path="BudgetApp.Tests/BudgetApp.Tests.csproj" />
   <Project Path="BudgetApp.TransactionsService/BudgetApp.TransactionsService.csproj" />
   <Project Path="BudgetApp.Web/BudgetApp.Web.csproj" />
 </Solution>
