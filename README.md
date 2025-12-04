@@ -3,14 +3,14 @@
 A modern personal budget tracking application built with **.NET Aspire** and a microservices architecture. Track your income and expenses, set category-based budgets, and receive automatic alerts when you exceed spending limits.
 
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?style=flat&logo=dotnet)
-![Aspire](https://img.shields.io/badge/Aspire-9.0-6C3483?style=flat)
+![Aspire](https://img.shields.io/badge/Aspire-13.0-6C3483?style=flat)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?style=flat&logo=postgresql)
 ![Blazor](https://img.shields.io/badge/Blazor-Server-512BD4?style=flat&logo=blazor)
 
 ---
 
 ## ✨ Features
-l
+
 - **Transaction Management** — Record income and expenses with merchant details and descriptions
 - **Multiple Accounts** — Support for multiple accounts with different currencies
 - **Category System** — Organize transactions into customizable categories with color coding
@@ -23,7 +23,7 @@ l
 
 ## 🏗️ Architecture
 
-BudgetApp follows a **microservices architecture** orchestrated by .NET Aspire:
+BudgetApp follows a **microservices architecture** orchestrated by .NET Aspire, with **CQRS pattern** (Command Query Responsibility Segregation) implemented via MediatR:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -36,7 +36,7 @@ BudgetApp follows a **microservices architecture** orchestrated by .NET Aspire:
 ┌─────────────────┐      ┌─────────────────┐       ┌─────────────────┐
 │   Web Frontend  │ ───▶ │   Gateway API   │ ◀───  │  Notifications  │
 │    (Blazor)     │      │                 │       │     Worker      │
-└─────────────────┘      └─────────────────┘       └─────────────────┘l
+└─────────────────┘      └─────────────────┘       └─────────────────┘
                                     │                       │
          ┌──────────────────────────┼───────────────────────┤
          │                          │                       │
@@ -73,9 +73,9 @@ BudgetApp follows a **microservices architecture** orchestrated by .NET Aspire:
 
 ```
 BudgetApp/
-├── BudgetApp.AppHost/           # Aspire orchestrator
-├── BudgetApp.ServiceDefaults/   # Shared service configuration
-├── BudgetApp.Domain/            # Domain models (shared entities)
+├── BudgetApp.AppHost/              # Aspire orchestrator
+├── BudgetApp.ServiceDefaults/      # Shared service configuration
+├── BudgetApp.Domain/               # Domain models (shared entities)
 │   └── Models/
 │       ├── Account.cs
 │       ├── Alert.cs
@@ -83,19 +83,37 @@ BudgetApp/
 │       ├── Category.cs
 │       ├── CategoryRule.cs
 │       ├── Transaction.cs
+│       ├── TransactionStatus.cs
 │       └── TransactionType.cs
-├── BudgetApp.Infrastructure/    # EF Core DbContext & migrations
-├── BudgetApp.ApiService/        # Gateway API
+├── BudgetApp.Application/          # CQRS Commands, Queries & Handlers (MediatR)
+│   ├── Common/
+│   │   ├── Behaviours/             # Pipeline behaviors (validation)
+│   │   ├── Exceptions/             # Custom exceptions
+│   │   ├── Interfaces/             # IApplicationDbContext
+│   │   └── Models/                 # Result wrapper
+│   └── Features/
+│       ├── Accounts/
+│       ├── Alerts/
+│       ├── Analytics/
+│       ├── Budgets/
+│       ├── Categories/
+│       ├── Rules/
+│       └── Transactions/
+├── BudgetApp.Infrastructure/       # EF Core DbContext & migrations
+├── BudgetApp.ApiService/           # Gateway API
 ├── BudgetApp.TransactionsService/
 ├── BudgetApp.AnalyticsService/
 ├── BudgetApp.RulesService/
 ├── BudgetApp.NotificationsWorker/
-├── BudgetApp.Web/               # Blazor frontend
-│   └── Components/Pages/
-│       ├── Home.razor           # Dashboard
-│       ├── Transactions.razor   # Transaction management
-│       └── Accounts.razor       # Account management
-└── BudgetApp.slnx               # Solution file
+├── BudgetApp.Web/                  # Blazor frontend
+│   ├── Components/Pages/
+│   │   ├── Home.razor              # Dashboard
+│   │   ├── Transactions.razor      # Transaction management
+│   │   ├── Accounts.razor          # Account management
+│   │   ├── Categories.razor        # Category management
+│   │   └── Budgets.razor           # Budget management
+│   └── Models/                     # View models
+└── BudgetApp.slnx                  # Solution file
 ```
 
 ---
@@ -139,14 +157,17 @@ The Gateway API exposes the following endpoints:
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/transactions` | List recent transactions |
+| `GET` | `/transactions/{id}` | Get transaction by ID |
 | `POST` | `/transactions` | Create a new transaction |
+| `PUT` | `/transactions/{id}` | Update a transaction |
+| `DELETE` | `/transactions/{id}` | Delete a transaction |
 
 ### Categories
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/categories` | List all categories |
-| `POST` | `/categories` | Create a category |
 | `GET` | `/categories/{id}` | Get category by ID |
+| `POST` | `/categories` | Create a category |
 | `PUT` | `/categories/{id}` | Update category |
 | `DELETE` | `/categories/{id}` | Delete category |
 
@@ -154,8 +175,8 @@ The Gateway API exposes the following endpoints:
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/budgets?year=&month=` | List budgets (optional filters) |
-| `POST` | `/budgets` | Create a budget |
 | `GET` | `/budgets/{id}` | Get budget by ID |
+| `POST` | `/budgets` | Create a budget |
 | `PUT` | `/budgets/{id}` | Update budget |
 | `DELETE` | `/budgets/{id}` | Delete budget |
 
@@ -163,8 +184,8 @@ The Gateway API exposes the following endpoints:
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/accounts` | List all accounts |
-| `POST` | `/accounts` | Create an account |
 | `GET` | `/accounts/{id}` | Get account by ID |
+| `POST` | `/accounts` | Create an account |
 | `PUT` | `/accounts/{id}` | Update account |
 | `DELETE` | `/accounts/{id}` | Delete account |
 
@@ -172,7 +193,10 @@ The Gateway API exposes the following endpoints:
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/rules` | List categorization rules |
+| `GET` | `/rules/{id}` | Get rule by ID |
 | `POST` | `/rules` | Create a rule |
+| `PUT` | `/rules/{id}` | Update a rule |
+| `DELETE` | `/rules/{id}` | Delete a rule |
 | `POST` | `/rules/classify` | Classify a transaction |
 
 ### Analytics
@@ -192,7 +216,7 @@ The Gateway API exposes the following endpoints:
 
 ### Automatic Transaction Categorization
 
-1. When you create a transaction, it starts with `Status = "New"`
+1. When you create a transaction, it starts with `Status = New`
 2. The **Notifications Worker** polls for uncategorized transactions every 10 seconds
 3. For each transaction, it calls the **Rules Service** to find a matching rule
 4. Rules match patterns (e.g., `"netflix"`, `"uber"`) against the transaction description/merchant
@@ -207,6 +231,20 @@ The Gateway API exposes the following endpoints:
 
 ---
 
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| **Orchestration** | .NET Aspire 13.0 |
+| **Backend** | ASP.NET Core Minimal APIs |
+| **Frontend** | Blazor Server |
+| **Database** | PostgreSQL with EF Core |
+| **Architecture** | CQRS with MediatR |
+| **Validation** | FluentValidation |
+| **Observability** | OpenTelemetry |
+
+---
+
 ## 🛠️ Development
 
 ### Adding a New Migration
@@ -214,6 +252,12 @@ The Gateway API exposes the following endpoints:
 ```bash
 cd BudgetApp.Infrastructure
 dotnet ef migrations add <MigrationName> --startup-project ../BudgetApp.TransactionsService
+```
+
+### Building the Solution
+
+```bash
+dotnet build
 ```
 
 ### Running Tests
@@ -230,5 +274,4 @@ Each service has its own `appsettings.json` and `appsettings.Development.json`. 
 
 ## 📄 License
 
-This project is licensed under the MIT License.
-
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
