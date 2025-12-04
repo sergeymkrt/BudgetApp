@@ -1,0 +1,261 @@
+﻿@page "/"
+@rendermode InteractiveServer
+
+@using System.Net.Http.Json
+@using BudgetApp.Web.Models
+@inject IHttpClientFactory HttpClientFactory
+
+<PageTitle>Dashboard - BudgetApp</PageTitle>
+
+@if (_isLoading)
+{
+    <div class="loading">
+        <div class="loading-spinner"></div>
+        <span class="loading-text">Loading dashboard...</span>
+    </div>
+}
+else if (_loadError is not null)
+{
+    <div class="alert alert-danger">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 8v4M12 16h.01"/>
+        </svg>
+        <span>Error loading data: @_loadError</span>
+    </div>
+}
+else
+{
+    <!-- Page Header -->
+    <div class="section-header mb-4">
+        <div>
+            <h1>Dashboard</h1>
+            <p class="text-secondary mb-0">Welcome back! Here's your financial overview for @GetMonthName(_summary?.Month ?? DateTime.Now.Month) @(_summary?.Year ?? DateTime.Now.Year).</p>
+        </div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="stat-grid fade-in">
+        <div class="stat-card">
+            <div class="stat-label">Total Income</div>
+            <div class="stat-value income">@FormatCurrency(_summary?.TotalIncome ?? 0)</div>
+            <div class="stat-change">This month</div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-label">Total Expenses</div>
+            <div class="stat-value expense">@FormatCurrency(_summary?.TotalExpenses ?? 0)</div>
+            <div class="stat-change">This month</div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-label">Net Balance</div>
+            <div class="stat-value @((_summary?.Net ?? 0) >= 0 ? "income" : "expense")">
+                @FormatCurrency(_summary?.Net ?? 0)
+            </div>
+            <div class="stat-change">
+                @if ((_summary?.Net ?? 0) >= 0)
+                {
+                    <span class="text-income">↑ Positive</span>
+                }
+                else
+                {
+                    <span class="text-expense">↓ Negative</span>
+                }
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-label">Accounts</div>
+            <div class="stat-value net">@_accounts.Count</div>
+            <div class="stat-change">Active accounts</div>
+        </div>
+    </div>
+
+    <!-- Accounts Section -->
+    <div class="section fade-in stagger-1">
+        <div class="section-header">
+            <h2 class="section-title">Your Accounts</h2>
+            <a href="accounts" class="btn btn-ghost btn-sm">View All →</a>
+        </div>
+
+        @if (!_accounts.Any())
+        {
+            <div class="card">
+                <div class="empty-state">
+                    <div class="empty-state-icon">💳</div>
+                    <p class="empty-state-text">No accounts yet. Create your first account to get started.</p>
+                    <a href="accounts" class="btn btn-primary btn-sm mt-2">Add Account</a>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="account-grid">
+                @foreach (var acc in _accounts.Take(4))
+                {
+                    <div class="account-card">
+                        <div class="account-name">@acc.Name</div>
+                        <span class="account-currency">@acc.Currency</span>
+                        <div class="account-id">@acc.Id</div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <!-- Recent Transactions Section -->
+    <div class="section fade-in stagger-2">
+        <div class="section-header">
+            <h2 class="section-title">Recent Transactions</h2>
+            <a href="transactions" class="btn btn-ghost btn-sm">View All →</a>
+        </div>
+
+        @if (!_transactions.Any())
+        {
+            <div class="card">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📊</div>
+                    <p class="empty-state-text">No transactions yet. Add your first transaction to start tracking.</p>
+                    <a href="transactions" class="btn btn-primary btn-sm mt-2">Add Transaction</a>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="data-table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Merchant</th>
+                            <th>Type</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var tx in _transactions)
+                        {
+                            <tr>
+                                <td class="cell-date">@tx.Date.ToLocalTime().ToString("MMM dd, HH:mm")</td>
+                                <td>@tx.Description</td>
+                                <td class="text-secondary">@(tx.Merchant ?? "—")</td>
+                                <td>
+                                    <span class="badge @(tx.Type == TransactionType.Income ? "badge-income" : "badge-expense")">
+                                        @tx.Type
+                                    </span>
+                                </td>
+                                <td class="cell-amount @(tx.Type == TransactionType.Income ? "income" : "expense")">
+                                    @(tx.Type == TransactionType.Income ? "+" : "-")@tx.Amount.ToString("N2")
+                                </td>
+                                <td>
+                                    <span class="badge @(tx.Status == "New" ? "badge-new" : "badge-status")">
+                                        @tx.Status
+                                    </span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    <!-- Alerts Section -->
+    <div class="section fade-in stagger-3">
+        <div class="section-header">
+            <h2 class="section-title">Recent Alerts</h2>
+        </div>
+
+        @if (!_alerts.Any())
+        {
+            <div class="card">
+                <div class="empty-state">
+                    <div class="empty-state-icon">🔔</div>
+                    <p class="empty-state-text">No alerts. You're all caught up!</p>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="card" style="padding: 0.5rem;">
+                <ul class="alert-list">
+                    @foreach (var alert in _alerts.Take(5))
+                    {
+                        <li class="alert-item">
+                            <div class="alert-item-icon">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                    <path d="M12 9v4M12 17h.01"/>
+                                </svg>
+                            </div>
+                            <div class="alert-item-content">
+                                <div class="alert-item-type">@alert.Type</div>
+                                <p class="alert-item-message">@alert.Message</p>
+                            </div>
+                            <span class="alert-item-time">@alert.CreatedAt.ToLocalTime().ToString("MMM dd")</span>
+                        </li>
+                    }
+                </ul>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private bool _isLoading = true;
+    private string? _loadError;
+
+    private List<AccountVm> _accounts = new();
+    private List<TransactionVm> _transactions = new();
+    private SummaryVm? _summary;
+    private List<AlertVm> _alerts = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient("gateway-api");
+            var now = DateTimeOffset.UtcNow;
+
+            var accountsTask = client.GetFromJsonAsync<List<AccountVm>>("/accounts");
+            var txTask = client.GetFromJsonAsync<List<TransactionVm>>("/transactions");
+            var summaryTask = client.GetFromJsonAsync<SummaryVm>(
+                $"/analytics/summary?year={now.Year}&month={now.Month}");
+            var alertsTask = client.GetFromJsonAsync<List<AlertVm>>("/alerts?take=20");
+
+            await Task.WhenAll(accountsTask!, txTask!, summaryTask!, alertsTask!);
+
+            _accounts = accountsTask.Result ?? new List<AccountVm>();
+            _transactions = (txTask.Result ?? new List<TransactionVm>())
+                .OrderByDescending(t => t.Date)
+                .Take(10)
+                .ToList();
+            _summary = summaryTask.Result;
+            _alerts = alertsTask.Result ?? new List<AlertVm>();
+        }
+        catch (Exception ex)
+        {
+            _loadError = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private string FormatCurrency(decimal amount)
+    {
+        return amount.ToString("N0");
+    }
+
+    private string GetMonthName(int month)
+    {
+        return new DateTime(2024, month, 1).ToString("MMMM");
+    }
+}

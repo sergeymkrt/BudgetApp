@@ -1,0 +1,13 @@
+<Solution>
+  <Project Path="BudgetApp.AnalyticsService/BudgetApp.AnalyticsService.csproj" />
+  <Project Path="BudgetApp.ApiService/BudgetApp.ApiService.csproj" />
+  <Project Path="BudgetApp.AppHost/BudgetApp.AppHost.csproj" />
+  <Project Path="BudgetApp.Application/BudgetApp.Application.csproj" />
+  <Project Path="BudgetApp.Domain/BudgetApp.Domain.csproj" />
+  <Project Path="BudgetApp.Infrastructure/BudgetApp.Infrastructure.csproj" />
+  <Project Path="BudgetApp.NotificationsWorker/BudgetApp.NotificationsWorker.csproj" />
+  <Project Path="BudgetApp.RulesService/BudgetApp.RulesService.csproj" />
+  <Project Path="BudgetApp.ServiceDefaults/BudgetApp.ServiceDefaults.csproj" />
+  <Project Path="BudgetApp.TransactionsService/BudgetApp.TransactionsService.csproj" />
+  <Project Path="BudgetApp.Web/BudgetApp.Web.csproj" />
+</Solution>

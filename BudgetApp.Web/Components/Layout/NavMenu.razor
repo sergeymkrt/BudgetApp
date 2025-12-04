@@ -1,0 +1,72 @@
+﻿<div class="nav-brand">
+    <div class="nav-brand-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2L3 7V17L12 22L21 17V7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M12 22V12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M12 12L21 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M12 12L3 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+    </div>
+    <span class="nav-brand-text">BudgetApp</span>
+</div>
+
+<nav class="nav-menu">
+    <div class="nav-section">
+        <span class="nav-section-title">Overview</span>
+        
+        <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="9" rx="1"/>
+                <rect x="14" y="3" width="7" height="5" rx="1"/>
+                <rect x="14" y="12" width="7" height="9" rx="1"/>
+                <rect x="3" y="16" width="7" height="5" rx="1"/>
+            </svg>
+            <span>Dashboard</span>
+        </NavLink>
+    </div>
+
+    <div class="nav-section">
+        <span class="nav-section-title">Finance</span>
+        
+        <NavLink class="nav-link" href="transactions">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            </svg>
+            <span>Transactions</span>
+        </NavLink>
+        
+        <NavLink class="nav-link" href="accounts">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="5" width="20" height="14" rx="2"/>
+                <path d="M2 10h20"/>
+            </svg>
+            <span>Accounts</span>
+        </NavLink>
+    </div>
+
+    <div class="nav-section">
+        <span class="nav-section-title">Settings</span>
+        
+        <NavLink class="nav-link" href="categories">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <path d="M22 6l-10 7L2 6"/>
+            </svg>
+            <span>Categories</span>
+        </NavLink>
+        
+        <NavLink class="nav-link" href="budgets">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12a9 9 0 1 1-9-9"/>
+                <path d="M21 3v9h-9"/>
+            </svg>
+            <span>Budgets</span>
+        </NavLink>
+    </div>
+</nav>
+
+<div class="nav-footer">
+    <div class="nav-footer-content">
+        <span class="nav-footer-version">v1.0.0</span>
+    </div>
+</div>

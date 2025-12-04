@@ -1,0 +1,507 @@
+@page "/budgets"
+@rendermode InteractiveServer
+
+@using System.Net.Http.Json
+@using BudgetApp.Web.Models
+@inject IHttpClientFactory HttpClientFactory
+
+<PageTitle>Budgets - BudgetApp</PageTitle>
+
+<!-- Page Header -->
+<div class="section-header mb-4">
+    <div>
+        <h1>Budgets</h1>
+        <p class="text-secondary mb-0">Set spending limits and track your progress.</p>
+    </div>
+</div>
+
+@if (_isLoading)
+{
+    <div class="loading">
+        <div class="loading-spinner"></div>
+        <span class="loading-text">Loading budgets...</span>
+    </div>
+}
+else if (!string.IsNullOrEmpty(_error))
+{
+    <div class="alert alert-danger">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 8v4M12 16h.01"/>
+        </svg>
+        <span>@_error</span>
+    </div>
+}
+else
+{
+    <!-- Add/Edit Budget Form -->
+    <div class="section fade-in">
+        <div class="form-card">
+            <h3 class="form-card-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.5rem; vertical-align: middle;">
+                    @if (_isEditing)
+                    {
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    }
+                    else
+                    {
+                        <path d="M21 12a9 9 0 1 1-9-9"/>
+                        <path d="M21 3v9h-9"/>
+                    }
+                </svg>
+                @(_isEditing ? "Edit Budget" : "Create New Budget")
+            </h3>
+
+            @if (!string.IsNullOrEmpty(_success))
+            {
+                <div class="alert alert-success mb-3">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                        <path d="M22 4L12 14.01l-3-3"/>
+                    </svg>
+                    <span>@_success</span>
+                </div>
+            }
+
+            @if (!_categories.Any())
+            {
+                <div class="alert alert-warning">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                        <path d="M12 9v4M12 17h.01"/>
+                    </svg>
+                    <span>You need to create categories first before setting up budgets. <a href="categories">Create a category →</a></span>
+                </div>
+            }
+            else
+            {
+                <EditForm Model="_formBudget" OnValidSubmit="SaveBudgetAsync">
+                    <DataAnnotationsValidator />
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Category</label>
+                            <select class="form-select" @bind="_formBudget.CategoryId">
+                                <option value="0">Select a category...</option>
+                                @foreach (var cat in _categories)
+                                {
+                                    <option value="@cat.Id">@cat.Name</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Monthly Limit</label>
+                            <InputNumber class="form-control font-mono" @bind-Value="_formBudget.LimitAmount" placeholder="0.00" />
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Month</label>
+                            <select class="form-select" @bind="_formBudget.Month">
+                                <option value="1">January</option>
+                                <option value="2">February</option>
+                                <option value="3">March</option>
+                                <option value="4">April</option>
+                                <option value="5">May</option>
+                                <option value="6">June</option>
+                                <option value="7">July</option>
+                                <option value="8">August</option>
+                                <option value="9">September</option>
+                                <option value="10">October</option>
+                                <option value="11">November</option>
+                                <option value="12">December</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Year</label>
+                            <InputNumber class="form-control font-mono" @bind-Value="_formBudget.Year" />
+                        </div>
+                    </div>
+
+                    <div class="mt-3" style="display: flex; gap: 0.75rem;">
+                        <button class="btn btn-primary" type="submit" disabled="@_isSubmitting">
+                            @if (_isSubmitting)
+                            {
+                                <div class="loading-spinner" style="width: 16px; height: 16px; border-width: 2px;"></div>
+                                <span>@(_isEditing ? "Saving..." : "Creating...")</span>
+                            }
+                            else
+                            {
+                                <span>@(_isEditing ? "Save Changes" : "Create Budget")</span>
+                            }
+                        </button>
+                        
+                        @if (_isEditing)
+                        {
+                            <button class="btn btn-secondary" type="button" @onclick="CancelEdit">
+                                Cancel
+                            </button>
+                        }
+                    </div>
+                    
+                    <ValidationSummary class="mt-2" />
+                </EditForm>
+            }
+        </div>
+    </div>
+
+    <!-- Budgets List -->
+    <div class="section fade-in stagger-1">
+        <div class="section-header">
+            <h2 class="section-title">Your Budgets</h2>
+            <span class="badge badge-status">@_budgets.Count budgets</span>
+        </div>
+
+        @if (!_budgets.Any())
+        {
+            <div class="card">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📊</div>
+                    <p class="empty-state-text">No budgets yet. Create your first budget above to start tracking your spending limits.</p>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="data-table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Period</th>
+                            <th>Limit</th>
+                            <th style="width: 140px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var budget in _budgets)
+                        {
+                            var category = _categories.FirstOrDefault(c => c.Id == budget.CategoryId);
+                            <tr>
+                                <td>
+                                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                        <div class="category-color-dot" style="background: @(category?.ColorHex ?? "var(--accent-primary)");"></div>
+                                        <span class="text-primary">@(budget.CategoryName ?? category?.Name ?? "Unknown")</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge badge-status">@GetMonthName(budget.Month) @budget.Year</span>
+                                </td>
+                                <td class="cell-amount">
+                                    @budget.LimitAmount.ToString("N2")
+                                </td>
+                                <td>
+                                    <div style="display: flex; gap: 0.5rem;">
+                                        <button class="btn btn-ghost btn-sm" title="Edit" @onclick="() => EditBudget(budget)">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                            </svg>
+                                        </button>
+                                        <button class="btn btn-ghost btn-danger btn-sm" title="Delete" 
+                                                @onclick="() => ConfirmDelete(budget)" disabled="@(_deletingId == budget.Id)">
+                                            @if (_deletingId == budget.Id)
+                                            {
+                                                <div class="loading-spinner" style="width: 14px; height: 14px; border-width: 2px;"></div>
+                                            }
+                                            else
+                                            {
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <polyline points="3 6 5 6 21 6"/>
+                                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                                    <line x1="10" y1="11" x2="10" y2="17"/>
+                                                    <line x1="14" y1="11" x2="14" y2="17"/>
+                                                </svg>
+                                            }
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    <!-- Quick Tips -->
+    <div class="section mt-4 fade-in stagger-2">
+        <div class="card" style="border-left: 3px solid var(--warning);">
+            <div style="display: flex; gap: 1rem;">
+                <div style="color: var(--warning); font-size: 1.5rem;">🎯</div>
+                <div>
+                    <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">Budget Tips</h3>
+                    <p class="text-secondary mb-0" style="font-size: 0.875rem;">
+                        Start with your essential categories like food, transport, and utilities. 
+                        Set realistic limits based on your past spending, then gradually adjust to reach your savings goals.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Delete Confirmation Modal -->
+@if (_showDeleteModal)
+{
+    <div class="modal-overlay" @onclick="CloseDeleteModal">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <h3 style="margin-bottom: 1rem;">Delete Budget?</h3>
+            <p class="text-secondary">
+                Are you sure you want to delete the budget for 
+                <strong class="text-primary">"@(_budgetToDelete?.CategoryName ?? GetCategoryName(_budgetToDelete?.CategoryId ?? 0))"</strong>
+                for @GetMonthName(_budgetToDelete?.Month ?? 1) @_budgetToDelete?.Year?
+            </p>
+            
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem;">
+                <button class="btn btn-secondary" @onclick="CloseDeleteModal">Cancel</button>
+                <button class="btn btn-danger" @onclick="DeleteBudgetConfirmed">
+                    Delete
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .category-color-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        animation: fadeIn 0.15s ease-out;
+    }
+    
+    .modal-content {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        max-width: 420px;
+        width: 90%;
+        animation: slideUp 0.2s ease-out;
+    }
+    
+    @@keyframes slideUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+
+@code {
+    private bool _isLoading = true;
+    private bool _isSubmitting = false;
+    private bool _isEditing = false;
+    private string? _error;
+    private string? _success;
+
+    private List<CategoryVm> _categories = new();
+    private List<BudgetVm> _budgets = new();
+    private BudgetVm _formBudget = new();
+
+    // Delete modal state
+    private bool _showDeleteModal;
+    private BudgetVm? _budgetToDelete;
+    private int? _deletingId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        ResetForm();
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _isLoading = true;
+        _error = null;
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient("gateway-api");
+
+            var categoriesTask = client.GetFromJsonAsync<List<CategoryVm>>("/categories");
+            var budgetsTask = client.GetFromJsonAsync<List<BudgetVm>>("/budgets");
+
+            await Task.WhenAll(categoriesTask!, budgetsTask!);
+
+            _categories = categoriesTask.Result?.OrderBy(c => c.Name).ToList() ?? new List<CategoryVm>();
+            _budgets = budgetsTask.Result?.OrderByDescending(b => b.Year).ThenByDescending(b => b.Month).ToList() ?? new List<BudgetVm>();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SaveBudgetAsync()
+    {
+        _isSubmitting = true;
+        _error = null;
+        _success = null;
+
+        try
+        {
+            if (_formBudget.CategoryId == 0)
+            {
+                _error = "Please select a category.";
+                return;
+            }
+
+            if (_formBudget.LimitAmount <= 0)
+            {
+                _error = "Limit amount must be greater than zero.";
+                return;
+            }
+
+            var client = HttpClientFactory.CreateClient("gateway-api");
+            HttpResponseMessage response;
+
+            var payload = new
+            {
+                categoryId = _formBudget.CategoryId,
+                limitAmount = _formBudget.LimitAmount,
+                year = _formBudget.Year,
+                month = _formBudget.Month
+            };
+
+            if (_isEditing)
+            {
+                response = await client.PutAsJsonAsync($"/budgets/{_formBudget.Id}", payload);
+            }
+            else
+            {
+                response = await client.PostAsJsonAsync("/budgets", payload);
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var text = await response.Content.ReadAsStringAsync();
+                _error = $"Error: {response.StatusCode} - {text}";
+            }
+            else
+            {
+                var categoryName = GetCategoryName(_formBudget.CategoryId);
+                _success = _isEditing 
+                    ? $"Budget for '{categoryName}' updated successfully!" 
+                    : $"Budget for '{categoryName}' created successfully!";
+                ResetForm();
+                await LoadDataAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private void EditBudget(BudgetVm budget)
+    {
+        _isEditing = true;
+        _formBudget = new BudgetVm
+        {
+            Id = budget.Id,
+            CategoryId = budget.CategoryId,
+            LimitAmount = budget.LimitAmount,
+            Year = budget.Year,
+            Month = budget.Month
+        };
+        _error = null;
+        _success = null;
+    }
+
+    private void CancelEdit()
+    {
+        ResetForm();
+    }
+
+    private void ResetForm()
+    {
+        _isEditing = false;
+        var now = DateTime.Now;
+        _formBudget = new BudgetVm 
+        { 
+            Year = now.Year, 
+            Month = now.Month,
+            LimitAmount = 0
+        };
+    }
+
+    private void ConfirmDelete(BudgetVm budget)
+    {
+        _budgetToDelete = budget;
+        _showDeleteModal = true;
+    }
+
+    private void CloseDeleteModal()
+    {
+        _showDeleteModal = false;
+        _budgetToDelete = null;
+    }
+
+    private async Task DeleteBudgetConfirmed()
+    {
+        if (_budgetToDelete is null) return;
+
+        _showDeleteModal = false;
+        _deletingId = _budgetToDelete.Id;
+        _error = null;
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient("gateway-api");
+            var response = await client.DeleteAsync($"/budgets/{_budgetToDelete.Id}");
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _error = "Failed to delete budget.";
+            }
+            else
+            {
+                _success = "Budget deleted successfully!";
+                await LoadDataAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _deletingId = null;
+            _budgetToDelete = null;
+        }
+    }
+
+    private string GetMonthName(int month)
+    {
+        return new DateTime(2024, month, 1).ToString("MMMM");
+    }
+
+    private string GetCategoryName(int categoryId)
+    {
+        return _categories.FirstOrDefault(c => c.Id == categoryId)?.Name ?? "Unknown";
+    }
+}

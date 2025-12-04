@@ -1,0 +1,42 @@
+﻿@page "/Error"
+@using System.Diagnostics
+
+<PageTitle>Error - BudgetApp</PageTitle>
+
+<div style="max-width: 600px; margin: 4rem auto; text-align: center;">
+    <div class="card">
+        <div style="font-size: 4rem; margin-bottom: 1rem;">😵</div>
+        <h1 style="font-size: 1.5rem; margin-bottom: 0.5rem;">Oops! Something went wrong</h1>
+        <p class="text-secondary" style="margin-bottom: 1.5rem;">
+            An error occurred while processing your request. Don't worry, our team has been notified.
+        </p>
+        
+        <a href="/" class="btn btn-primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.5rem;">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                <polyline points="9,22 9,12 15,12 15,22"/>
+            </svg>
+            Back to Dashboard
+        </a>
+        
+        @if (ShowRequestId)
+        {
+            <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                <p class="text-muted" style="font-size: 0.75rem; margin: 0;">
+                    Request ID: <code class="font-mono">@RequestId</code>
+                </p>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    public HttpContext? HttpContext { get; set; }
+
+    public string? RequestId { get; set; }
+    public bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
+
+    protected override void OnInitialized() =>
+        RequestId = Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
+}

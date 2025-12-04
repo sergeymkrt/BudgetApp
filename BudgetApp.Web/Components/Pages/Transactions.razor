@@ -1,0 +1,485 @@
+﻿@page "/transactions"
+@rendermode InteractiveServer
+
+@using System.Net.Http.Json
+@using BudgetApp.Web.Models
+@inject IHttpClientFactory HttpClientFactory
+
+<PageTitle>Transactions - BudgetApp</PageTitle>
+
+<!-- Page Header -->
+<div class="section-header mb-4">
+    <div>
+        <h1>Transactions</h1>
+        <p class="text-secondary mb-0">Track and manage your income and expenses.</p>
+    </div>
+</div>
+
+@if (_isLoading)
+{
+    <div class="loading">
+        <div class="loading-spinner"></div>
+        <span class="loading-text">Loading transactions...</span>
+    </div>
+}
+else if (!string.IsNullOrEmpty(_error))
+{
+    <div class="alert alert-danger">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 8v4M12 16h.01"/>
+        </svg>
+        <span>@_error</span>
+    </div>
+}
+else
+{
+    <!-- Add/Edit Transaction Form -->
+    <div class="section fade-in">
+        <div class="form-card">
+            <h3 class="form-card-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.5rem; vertical-align: middle;">
+                    @if (_isEditing)
+                    {
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    }
+                    else
+                    {
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M12 8v8M8 12h8"/>
+                    }
+                </svg>
+                @(_isEditing ? "Edit Transaction" : "Add New Transaction")
+            </h3>
+
+            @if (!string.IsNullOrEmpty(_success))
+            {
+                <div class="alert alert-success mb-3">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                        <path d="M22 4L12 14.01l-3-3"/>
+                    </svg>
+                    <span>@_success</span>
+                </div>
+            }
+
+            <EditForm Model="_formTx" OnValidSubmit="SaveTransactionAsync">
+                <DataAnnotationsValidator />
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Account</label>
+                        <select class="form-select" @bind="_formTx.AccountId">
+                            <option value="@Guid.Empty">Select an account...</option>
+                            @foreach (var acc in _accounts)
+                            {
+                                <option value="@acc.Id">@acc.Name (@acc.Currency)</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Type</label>
+                        <select class="form-select" @bind="_formTx.Type">
+                            <option value="@TransactionType.Expense">💸 Expense</option>
+                            <option value="@TransactionType.Income">💰 Income</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Amount</label>
+                        <InputNumber class="form-control font-mono" @bind-Value="_formTx.Amount" placeholder="0.00" />
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <InputText class="form-control" @bind-Value="_formTx.Description" placeholder="What was this for?" />
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Merchant (optional)</label>
+                        <InputText class="form-control" @bind-Value="_formTx.Merchant" placeholder="Store or company name" />
+                    </div>
+                </div>
+
+                <div class="mt-3" style="display: flex; gap: 0.75rem;">
+                    <button class="btn btn-primary" type="submit" disabled="@_isSubmitting">
+                        @if (_isSubmitting)
+                        {
+                            <div class="loading-spinner" style="width: 16px; height: 16px; border-width: 2px;"></div>
+                            <span>@(_isEditing ? "Saving..." : "Adding...")</span>
+                        }
+                        else
+                        {
+                            <span>@(_isEditing ? "Save Changes" : "Add Transaction")</span>
+                        }
+                    </button>
+                    
+                    @if (_isEditing)
+                    {
+                        <button class="btn btn-secondary" type="button" @onclick="CancelEdit">
+                            Cancel
+                        </button>
+                    }
+                </div>
+                
+                <ValidationSummary class="mt-2" />
+            </EditForm>
+        </div>
+    </div>
+
+    <!-- Transactions List -->
+    <div class="section fade-in stagger-1">
+        <div class="section-header">
+            <h2 class="section-title">All Transactions</h2>
+            <span class="badge badge-status">@_transactions.Count transactions</span>
+        </div>
+
+        @if (!_transactions.Any())
+        {
+            <div class="card">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📊</div>
+                    <p class="empty-state-text">No transactions yet. Add your first one above!</p>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="data-table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Merchant</th>
+                            <th>Type</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                            <th style="width: 100px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var tx in _transactions)
+                        {
+                            <tr>
+                                <td class="cell-date">
+                                    <div>@tx.Date.ToLocalTime().ToString("MMM dd, yyyy")</div>
+                                    <div class="text-muted" style="font-size: 0.75rem;">@tx.Date.ToLocalTime().ToString("HH:mm")</div>
+                                </td>
+                                <td>
+                                    <div class="text-primary">@tx.Description</div>
+                                </td>
+                                <td class="text-secondary">@(tx.Merchant ?? "—")</td>
+                                <td>
+                                    <span class="badge @(tx.Type == TransactionType.Income ? "badge-income" : "badge-expense")">
+                                        @(tx.Type == TransactionType.Income ? "↑" : "↓") @tx.Type
+                                    </span>
+                                </td>
+                                <td class="cell-amount @(tx.Type == TransactionType.Income ? "income" : "expense")">
+                                    @(tx.Type == TransactionType.Income ? "+" : "-")@tx.Amount.ToString("N2")
+                                </td>
+                                <td>
+                                    <span class="badge @(tx.Status == "New" ? "badge-new" : "badge-status")">
+                                        @tx.Status
+                                    </span>
+                                </td>
+                                <td>
+                                    <div style="display: flex; gap: 0.5rem;">
+                                        <button class="btn btn-ghost btn-sm" title="Edit" @onclick="() => EditTransaction(tx)">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                            </svg>
+                                        </button>
+                                        <button class="btn btn-ghost btn-danger btn-sm" title="Delete" 
+                                                @onclick="() => ConfirmDelete(tx)" disabled="@(_deletingId == tx.Id)">
+                                            @if (_deletingId == tx.Id)
+                                            {
+                                                <div class="loading-spinner" style="width: 14px; height: 14px; border-width: 2px;"></div>
+                                            }
+                                            else
+                                            {
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <polyline points="3 6 5 6 21 6"/>
+                                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                                    <line x1="10" y1="11" x2="10" y2="17"/>
+                                                    <line x1="14" y1="11" x2="14" y2="17"/>
+                                                </svg>
+                                            }
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+}
+
+<!-- Delete Confirmation Modal -->
+@if (_showDeleteModal)
+{
+    <div class="modal-overlay" @onclick="CloseDeleteModal">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <h3 style="margin-bottom: 1rem;">Delete Transaction?</h3>
+            <p class="text-secondary">
+                Are you sure you want to delete this transaction?
+                <br/>
+                <strong class="text-primary">@_transactionToDelete?.Description</strong> - 
+                <span class="@(_transactionToDelete?.Type == TransactionType.Income ? "text-income" : "text-expense")">
+                    @(_transactionToDelete?.Type == TransactionType.Income ? "+" : "-")@_transactionToDelete?.Amount.ToString("N2")
+                </span>
+            </p>
+            <p class="text-muted" style="font-size: 0.875rem;">This action cannot be undone.</p>
+            
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem;">
+                <button class="btn btn-secondary" @onclick="CloseDeleteModal">Cancel</button>
+                <button class="btn btn-danger" @onclick="DeleteTransactionConfirmed">
+                    Delete
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        animation: fadeIn 0.15s ease-out;
+    }
+    
+    .modal-content {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        max-width: 420px;
+        width: 90%;
+        animation: slideUp 0.2s ease-out;
+    }
+    
+    @@keyframes slideUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+
+@code {
+    private bool _isLoading = true;
+    private bool _isSubmitting;
+    private bool _isEditing;
+    private string? _error;
+    private string? _success;
+
+    private List<AccountVm> _accounts = new();
+    private List<TransactionVm> _transactions = new();
+
+    private TransactionVm _formTx = new()
+    {
+        Type = TransactionType.Expense,
+        Amount = 0
+    };
+
+    // Delete modal state
+    private bool _showDeleteModal;
+    private TransactionVm? _transactionToDelete;
+    private Guid? _deletingId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _isLoading = true;
+        _error = null;
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient("gateway-api");
+
+            var accountsTask = client.GetFromJsonAsync<List<AccountVm>>("/accounts");
+            var txTask = client.GetFromJsonAsync<List<TransactionVm>>("/transactions");
+
+            await Task.WhenAll(accountsTask!, txTask!);
+
+            _accounts = accountsTask.Result ?? new List<AccountVm>();
+            _transactions = (txTask.Result ?? new List<TransactionVm>())
+                .OrderByDescending(t => t.Date)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SaveTransactionAsync()
+    {
+        _isSubmitting = true;
+        _error = null;
+        _success = null;
+
+        try
+        {
+            if (_formTx.AccountId == Guid.Empty)
+            {
+                _error = "Please select an account.";
+                return;
+            }
+
+            if (_formTx.Amount <= 0)
+            {
+                _error = "Amount must be greater than zero.";
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(_formTx.Description))
+            {
+                _error = "Please enter a description.";
+                return;
+            }
+
+            var client = HttpClientFactory.CreateClient("gateway-api");
+
+            var payload = new
+            {
+                accountId = _formTx.AccountId,
+                amount = _formTx.Amount,
+                type = _formTx.Type,
+                description = _formTx.Description,
+                merchant = _formTx.Merchant
+            };
+
+            HttpResponseMessage response;
+
+            if (_isEditing)
+            {
+                response = await client.PutAsJsonAsync($"/transactions/{_formTx.Id}", payload);
+            }
+            else
+            {
+                response = await client.PostAsJsonAsync("/transactions", payload);
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var text = await response.Content.ReadAsStringAsync();
+                _error = $"Error: {response.StatusCode}";
+            }
+            else
+            {
+                _success = _isEditing ? "Transaction updated successfully!" : "Transaction added successfully!";
+                ResetForm();
+                await LoadDataAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private void EditTransaction(TransactionVm tx)
+    {
+        _isEditing = true;
+        _formTx = new TransactionVm
+        {
+            Id = tx.Id,
+            AccountId = tx.AccountId,
+            Amount = tx.Amount,
+            Type = tx.Type,
+            Description = tx.Description,
+            Merchant = tx.Merchant,
+            Date = tx.Date,
+            Status = tx.Status
+        };
+        _error = null;
+        _success = null;
+    }
+
+    private void CancelEdit()
+    {
+        ResetForm();
+    }
+
+    private void ResetForm()
+    {
+        _isEditing = false;
+        _formTx = new TransactionVm
+        {
+            Type = TransactionType.Expense,
+            Amount = 0
+        };
+    }
+
+    private void ConfirmDelete(TransactionVm tx)
+    {
+        _transactionToDelete = tx;
+        _showDeleteModal = true;
+    }
+
+    private void CloseDeleteModal()
+    {
+        _showDeleteModal = false;
+        _transactionToDelete = null;
+    }
+
+    private async Task DeleteTransactionConfirmed()
+    {
+        if (_transactionToDelete is null) return;
+
+        _showDeleteModal = false;
+        _deletingId = _transactionToDelete.Id;
+        _error = null;
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient("gateway-api");
+            var response = await client.DeleteAsync($"/transactions/{_transactionToDelete.Id}");
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _error = "Failed to delete transaction.";
+            }
+            else
+            {
+                _success = "Transaction deleted successfully!";
+                await LoadDataAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _deletingId = null;
+            _transactionToDelete = null;
+        }
+    }
+}

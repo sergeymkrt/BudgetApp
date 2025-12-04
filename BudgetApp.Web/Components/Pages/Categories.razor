@@ -1,0 +1,463 @@
+@page "/categories"
+@rendermode InteractiveServer
+
+@using System.Net.Http.Json
+@using BudgetApp.Web.Models
+@inject IHttpClientFactory HttpClientFactory
+
+<PageTitle>Categories - BudgetApp</PageTitle>
+
+<!-- Page Header -->
+<div class="section-header mb-4">
+    <div>
+        <h1>Categories</h1>
+        <p class="text-secondary mb-0">Organize your transactions with custom categories.</p>
+    </div>
+</div>
+
+@if (_isLoading)
+{
+    <div class="loading">
+        <div class="loading-spinner"></div>
+        <span class="loading-text">Loading categories...</span>
+    </div>
+}
+else if (!string.IsNullOrEmpty(_error))
+{
+    <div class="alert alert-danger">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 8v4M12 16h.01"/>
+        </svg>
+        <span>@_error</span>
+    </div>
+}
+else
+{
+    <!-- Add/Edit Category Form -->
+    <div class="section fade-in">
+        <div class="form-card">
+            <h3 class="form-card-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.5rem; vertical-align: middle;">
+                    @if (_isEditing)
+                    {
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    }
+                    else
+                    {
+                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                    }
+                </svg>
+                @(_isEditing ? "Edit Category" : "Create New Category")
+            </h3>
+
+            @if (!string.IsNullOrEmpty(_success))
+            {
+                <div class="alert alert-success mb-3">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                        <path d="M22 4L12 14.01l-3-3"/>
+                    </svg>
+                    <span>@_success</span>
+                </div>
+            }
+
+            <EditForm Model="_formCategory" OnValidSubmit="SaveCategoryAsync">
+                <DataAnnotationsValidator />
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Category Name</label>
+                        <InputText class="form-control" @bind-Value="_formCategory.Name" placeholder="e.g., Food, Transport, Entertainment" />
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Color</label>
+                        <div style="display: flex; gap: 0.75rem; align-items: center;">
+                            <input type="color" 
+                                   value="@(_formCategory.ColorHex ?? "#14b8a6")" 
+                                   @onchange="OnColorChange"
+                                   style="width: 50px; height: 38px; border: none; border-radius: var(--radius-md); cursor: pointer; background: transparent;" />
+                            <InputText class="form-control font-mono" @bind-Value="_formCategory.ColorHex" placeholder="#14b8a6" style="flex: 1;" />
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="display: flex; align-items: flex-end; gap: 0.75rem;">
+                        <button class="btn btn-primary" type="submit" disabled="@_isSubmitting">
+                            @if (_isSubmitting)
+                            {
+                                <div class="loading-spinner" style="width: 16px; height: 16px; border-width: 2px;"></div>
+                                <span>@(_isEditing ? "Saving..." : "Creating...")</span>
+                            }
+                            else
+                            {
+                                <span>@(_isEditing ? "Save Changes" : "Create Category")</span>
+                            }
+                        </button>
+                        
+                        @if (_isEditing)
+                        {
+                            <button class="btn btn-secondary" type="button" @onclick="CancelEdit">
+                                Cancel
+                            </button>
+                        }
+                    </div>
+                </div>
+                
+                <ValidationSummary class="mt-2" />
+            </EditForm>
+        </div>
+    </div>
+
+    <!-- Categories List -->
+    <div class="section fade-in stagger-1">
+        <div class="section-header">
+            <h2 class="section-title">Your Categories</h2>
+            <span class="badge badge-status">@_categories.Count categories</span>
+        </div>
+
+        @if (!_categories.Any())
+        {
+            <div class="card">
+                <div class="empty-state">
+                    <div class="empty-state-icon">🏷️</div>
+                    <p class="empty-state-text">No categories yet. Create your first category above to start organizing your transactions.</p>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="category-grid">
+                @foreach (var cat in _categories)
+                {
+                    <div class="category-card">
+                        <div class="category-color-bar" style="background: @(cat.ColorHex ?? "var(--accent-primary)");"></div>
+                        <div class="category-card-content">
+                            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+                                <div class="category-color-dot" style="background: @(cat.ColorHex ?? "var(--accent-primary)");"></div>
+                                <div class="category-name">@cat.Name</div>
+                            </div>
+                            <div class="category-hex font-mono">@(cat.ColorHex ?? "Default")</div>
+                            
+                            <!-- Action buttons -->
+                            <div style="display: flex; gap: 0.5rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                                <button class="btn btn-ghost btn-sm" style="flex: 1;" @onclick="() => EditCategory(cat)">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                    </svg>
+                                    Edit
+                                </button>
+                                <button class="btn btn-ghost btn-danger btn-sm" style="flex: 1;" 
+                                        @onclick="() => ConfirmDelete(cat)" disabled="@(_deletingId == cat.Id)">
+                                    @if (_deletingId == cat.Id)
+                                    {
+                                        <div class="loading-spinner" style="width: 14px; height: 14px; border-width: 2px;"></div>
+                                    }
+                                    else
+                                    {
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="3 6 5 6 21 6"/>
+                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                        </svg>
+                                    }
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <!-- Quick Tips -->
+    <div class="section mt-4 fade-in stagger-2">
+        <div class="card" style="border-left: 3px solid var(--accent-primary);">
+            <div style="display: flex; gap: 1rem;">
+                <div style="color: var(--accent-primary); font-size: 1.5rem;">💡</div>
+                <div>
+                    <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">Pro Tip</h3>
+                    <p class="text-secondary mb-0" style="font-size: 0.875rem;">
+                        Use colors to quickly identify your spending categories at a glance. 
+                        Consider using red for expenses like bills, green for income, and blue for savings.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Delete Confirmation Modal -->
+@if (_showDeleteModal)
+{
+    <div class="modal-overlay" @onclick="CloseDeleteModal">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <h3 style="margin-bottom: 1rem;">Delete Category?</h3>
+            <p class="text-secondary">
+                Are you sure you want to delete the category 
+                <strong class="text-primary">"@_categoryToDelete?.Name"</strong>?
+            </p>
+            <p class="text-muted" style="font-size: 0.875rem;">
+                ⚠️ Transactions using this category will become uncategorized.
+            </p>
+            
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem;">
+                <button class="btn btn-secondary" @onclick="CloseDeleteModal">Cancel</button>
+                <button class="btn btn-danger" @onclick="DeleteCategoryConfirmed">
+                    Delete
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .category-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 1.25rem;
+    }
+    
+    .category-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        transition: all var(--transition-normal);
+    }
+    
+    .category-card:hover {
+        border-color: var(--border-accent);
+        box-shadow: var(--shadow-glow);
+    }
+    
+    .category-color-bar {
+        height: 4px;
+    }
+    
+    .category-card-content {
+        padding: 1.25rem;
+    }
+    
+    .category-color-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    
+    .category-name {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .category-hex {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+    }
+    
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        animation: fadeIn 0.15s ease-out;
+    }
+    
+    .modal-content {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        max-width: 420px;
+        width: 90%;
+        animation: slideUp 0.2s ease-out;
+    }
+    
+    @@keyframes slideUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+
+@code {
+    private bool _isLoading = true;
+    private bool _isSubmitting = false;
+    private bool _isEditing = false;
+    private string? _error;
+    private string? _success;
+
+    private List<CategoryVm> _categories = new();
+    private CategoryVm _formCategory = new() { ColorHex = "#14b8a6" };
+
+    // Delete modal state
+    private bool _showDeleteModal;
+    private CategoryVm? _categoryToDelete;
+    private int? _deletingId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCategoriesAsync();
+    }
+
+    private async Task LoadCategoriesAsync()
+    {
+        _isLoading = true;
+        _error = null;
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient("gateway-api");
+            var categories = await client.GetFromJsonAsync<List<CategoryVm>>("/categories");
+            _categories = categories?.OrderBy(c => c.Name).ToList() ?? new List<CategoryVm>();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void OnColorChange(ChangeEventArgs e)
+    {
+        _formCategory.ColorHex = e.Value?.ToString();
+    }
+
+    private async Task SaveCategoryAsync()
+    {
+        _isSubmitting = true;
+        _error = null;
+        _success = null;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_formCategory.Name))
+            {
+                _error = "Please enter a category name.";
+                return;
+            }
+
+            var client = HttpClientFactory.CreateClient("gateway-api");
+            HttpResponseMessage response;
+
+            var payload = new
+            {
+                name = _formCategory.Name,
+                colorHex = _formCategory.ColorHex
+            };
+
+            if (_isEditing)
+            {
+                response = await client.PutAsJsonAsync($"/categories/{_formCategory.Id}", payload);
+            }
+            else
+            {
+                response = await client.PostAsJsonAsync("/categories", payload);
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var text = await response.Content.ReadAsStringAsync();
+                _error = $"Error: {response.StatusCode}";
+            }
+            else
+            {
+                _success = _isEditing 
+                    ? $"Category '{_formCategory.Name}' updated successfully!" 
+                    : $"Category '{_formCategory.Name}' created successfully!";
+                ResetForm();
+                await LoadCategoriesAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private void EditCategory(CategoryVm cat)
+    {
+        _isEditing = true;
+        _formCategory = new CategoryVm
+        {
+            Id = cat.Id,
+            Name = cat.Name,
+            ColorHex = cat.ColorHex ?? "#14b8a6"
+        };
+        _error = null;
+        _success = null;
+    }
+
+    private void CancelEdit()
+    {
+        ResetForm();
+    }
+
+    private void ResetForm()
+    {
+        _isEditing = false;
+        _formCategory = new CategoryVm { ColorHex = "#14b8a6" };
+    }
+
+    private void ConfirmDelete(CategoryVm cat)
+    {
+        _categoryToDelete = cat;
+        _showDeleteModal = true;
+    }
+
+    private void CloseDeleteModal()
+    {
+        _showDeleteModal = false;
+        _categoryToDelete = null;
+    }
+
+    private async Task DeleteCategoryConfirmed()
+    {
+        if (_categoryToDelete is null) return;
+
+        _showDeleteModal = false;
+        _deletingId = _categoryToDelete.Id;
+        _error = null;
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient("gateway-api");
+            var response = await client.DeleteAsync($"/categories/{_categoryToDelete.Id}");
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _error = "Failed to delete category.";
+            }
+            else
+            {
+                _success = $"Category '{_categoryToDelete.Name}' deleted successfully!";
+                await LoadCategoriesAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _deletingId = null;
+            _categoryToDelete = null;
+        }
+    }
+}
